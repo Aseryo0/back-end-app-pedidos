@@ -9,14 +9,26 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const client_1 = require("@prisma/client");
 const api_1 = require("../lib/api");
 class PaymentService {
     process(order, customer, payment) {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO: criar o customer
-            const customerId = yield this.createCustomer(customer);
-            console.log("customerId", customerId);
-            // TODO: processar a transação
+            try {
+                const customerId = yield this.createCustomer(customer);
+                const transaction = yield this.createTransaction(customerId, order, customer, payment);
+                return {
+                    transactionId: transaction.transactionId,
+                    status: client_1.OrderStatus.PAID,
+                };
+            }
+            catch (error) {
+                console.error("Error on process payment: ", JSON.stringify(error, null, 2));
+                return {
+                    transactionId: "",
+                    status: client_1.OrderStatus.CANCELED,
+                };
+            }
         });
     }
     createCustomer(customer) {
@@ -40,6 +52,40 @@ class PaymentService {
             };
             const response = yield api_1.api.post("/customers", customerParams);
             return (_e = response.data) === null || _e === void 0 ? void 0 : _e.id;
+        });
+    }
+    createTransaction(customerId, order, customer, payment) {
+        var _a, _b, _c, _d;
+        return __awaiter(this, void 0, void 0, function* () {
+            const paymentParams = {
+                customer: customerId,
+                billingType: "CREDIT_CARD",
+                dueDate: new Date().toISOString(),
+                value: order.total,
+                description: `Pedido #${order.id}`,
+                externalReference: order.id.toString(),
+                creditCard: {
+                    holderName: payment.creditCardHolder,
+                    number: payment.creditCardNumber,
+                    expiryMonth: (_a = payment.creditCardExpiration) === null || _a === void 0 ? void 0 : _a.split("/")[0],
+                    expiryYear: (_b = payment.creditCardExpiration) === null || _b === void 0 ? void 0 : _b.split("/")[1],
+                    ccv: payment.creditCardSecurityCode,
+                },
+                creditCardHolderInfo: {
+                    name: customer.fullName,
+                    email: customer.email,
+                    cpfCnpj: customer.document,
+                    postalCode: customer.zipCode,
+                    addressNumber: customer.number,
+                    addressComplement: customer.complement,
+                    mobilePhone: customer.mobile,
+                },
+            };
+            const response = yield api_1.api.post("/payments", paymentParams);
+            return {
+                transactionId: (_c = response.data) === null || _c === void 0 ? void 0 : _c.id,
+                gatewayStatus: (_d = response.data) === null || _d === void 0 ? void 0 : _d.status,
+            };
         });
     }
 }

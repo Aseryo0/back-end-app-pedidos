@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
+const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
 const CheckoutService_1 = __importDefault(require("./services/CheckoutService"));
@@ -21,6 +22,7 @@ const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
 const prisma = new client_1.PrismaClient();
 app.use(express_1.default.json());
+app.use((0, cors_1.default)());
 app.get("/", (req, res) => {
     const { message } = req.body;
     if (!message)
@@ -55,9 +57,8 @@ app.get("/orders/:id", (req, res) => __awaiter(void 0, void 0, void 0, function*
 }));
 app.post("/checkout", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { cart, customer, payment } = req.body;
-    const checkoutService = new CheckoutService_1.default();
-    checkoutService.process(cart, customer, payment);
-    res.send({ message: "Checkout completed" });
+    const orderCreated = yield new CheckoutService_1.default().process(cart, customer, payment);
+    res.send(orderCreated);
 }));
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

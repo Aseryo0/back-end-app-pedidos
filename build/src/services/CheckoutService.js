@@ -41,10 +41,22 @@ class CheckoutService {
             const customerCreated = yield this.createCustomer(customer);
             // console.log(`customerCreated`, customerCreated)
             // TODO: criar uma order orderitem
-            const orderCreated = yield this.createOrder(snacksInCart, customerCreated);
+            let orderCreated = yield this.createOrder(snacksInCart, customerCreated);
             // console.log(`orderCreated`, orderCreated)
             // TODO: processar o pagamento
-            const transaction = yield new PaymentService_1.default().process(orderCreated, customerCreated, payment);
+            const { transactionId, status } = yield new PaymentService_1.default().process(orderCreated, customerCreated, payment);
+            orderCreated = yield this.prisma.order.update({
+                where: { id: orderCreated.id },
+                data: {
+                    transactionId,
+                    status,
+                },
+            });
+            return {
+                id: orderCreated.id,
+                transactionId: orderCreated.transactionId,
+                status: orderCreated.status,
+            };
         });
     }
     createCustomer(customer) {
